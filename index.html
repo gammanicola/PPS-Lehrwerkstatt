@@ -32,7 +32,7 @@ button,input,select{font-family:inherit}
 // ═══════════════════════════════════════════════════════════════
 window.APP_CONFIG = {
   SUPABASE_URL: '',   // z.B. 'https://abcdefghijkl.supabase.co'
-  SUPABASE_KEY: 'sb_publishable_PBYP6VK4Ekrdeys_HLHUtQ_dctEwvCr'    // Publishable key, beginnt mit 'sb_publishable_'
+  SUPABASE_KEY: ''    // Publishable key, beginnt mit 'sb_publishable_'
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
@@ -1112,9 +1112,14 @@ window.__APP={setData:function(d){ST.ma=d.ma||[];ST.auftraege=d.auftraege||[];ST
 // ══════════ DATENBANK-ANBINDUNG (Supabase) ══════════
 // Ohne Konfiguration läuft das Dashboard wie bisher nur im Browser-Speicher.
 (function(){
-  var CFG=window.APP_CONFIG||{},root=document.getElementById('root');
-  var CLOUD=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_KEY);
-  if(!CLOUD){window.startApp();return;}
+  var root=document.getElementById('root'),CFG_OK=!!window.APP_CONFIG,CFG=window.APP_CONFIG||{};
+  var U=String(CFG.SUPABASE_URL||'').trim(),K=String(CFG.SUPABASE_KEY||'').trim();
+  // Beides leer → Browser-Modus wie bisher, aber mit deutlichem Hinweis
+  if(CFG_OK&&!U&&!K){
+    window.startApp();
+    var warn=document.createElement('div');warn.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:950;background:#78350f;color:#fef3c7;font-size:12px;font-weight:600;padding:8px 16px;text-align:center;border-top:1px solid #f59e0b';
+    warn.textContent='⚠️ Nicht mit der Datenbank verbunden – Daten werden nur in diesem Browser gespeichert. Für die gemeinsame Nutzung im Block KONFIGURATION der index.html die Supabase-URL und den Publishable key eintragen.';
+    document.body.appendChild(warn);document.body.style.paddingBottom='44px';return;}
 
   // ── kleine Helfer ──
   function h(tag,css,txt){var e=document.createElement(tag);if(css)e.style.cssText=css;if(txt!=null)e.textContent=txt;return e;}
@@ -1129,6 +1134,14 @@ window.__APP={setData:function(d){ST.ma=d.ma||[];ST.auftraege=d.auftraege||[];ST
   function loading(t){screen(t||'Lädt …',['Verbindung zur Datenbank wird hergestellt.']);}
   function logoutBtn(){var b=h('button','margin-top:10px;padding:9px 14px;background:transparent;border:1px solid #475569;border-radius:8px;color:#cbd5e1;font-size:13px;cursor:pointer;','Abmelden');b.onclick=logout;return b;}
 
+  // Konfiguration prüfen, bevor verbunden wird
+  var cfgErr=null;
+  if(!CFG_OK)cfgErr=['Der Block KONFIGURATION in der index.html enthält einen Schreibfehler und konnte nicht gelesen werden.','Häufige Ursachen: typografische Anführungszeichen (’ oder „) statt gerader \' – fehlendes Komma am Ende der SUPABASE_URL-Zeile – fehlende Klammer.','Am sichersten direkt auf GitHub bearbeiten (Stift-Symbol), nicht in Word.'];
+  else if(!U||!K)cfgErr=['In der Konfiguration ist nur '+(U?'die SUPABASE_URL':'der SUPABASE_KEY')+' eingetragen. Es braucht beide Werte.'];
+  else if(/^sb_secret_/.test(K))cfgErr=['Als SUPABASE_KEY ist der Secret key eingetragen. Der darf nie in die Seite – er gibt vollen Zugriff auf alle Daten!','Bitte den Publishable key (sb_publishable_…) eintragen und den Secret key in Supabase unter API Keys sofort neu erstellen.'];
+  else if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(U))cfgErr=['Die SUPABASE_URL «'+U+'» hat nicht die erwartete Form https://xxxx.supabase.co.','Bitte die Project URL aus Supabase → Project Settings → Data API verwenden (nicht die Adresse des Supabase-Dashboards).'];
+  if(cfgErr){screen('Konfiguration prüfen',cfgErr);return;}
+  CFG.SUPABASE_URL=U.replace(/\/$/,'');CFG.SUPABASE_KEY=K;
   if(!window.supabase||!window.supabase.createClient){screen('Keine Verbindung',['Die Datenbank-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und die Seite neu laden.']);return;}
   var sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY);
   var email='',name='',role='',VER=0,metaTs=null,metaBy='';
